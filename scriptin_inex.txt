@@ -1,0 +1,100 @@
+ <script>
+                function openModal() {
+                  const modal = document.getElementById('resumeModal');
+                  const resumeList = document.getElementById('resumeList');
+                  modal.classList.remove('hidden');
+              
+                  // Fetch resumes from the server
+                  fetch('/get_resumes')
+                      .then(response => response.json())
+                      .then(data => {
+                          resumeList.innerHTML = '';
+                          if (data.resumes && data.resumes.length > 0) {
+                              data.resumes.forEach(resume => {
+                                  const label = document.createElement('label');
+                                  label.innerHTML = `<input type="checkbox" class="resume-checkbox" value="${resume.resume_file}"> ${resume.name}'s Resume`;
+                                  resumeList.appendChild(label);
+                              });
+                          } else {
+                              resumeList.innerHTML = '<p>No resumes found.</p>';
+                          }
+                          updateSelectedCount();
+                      })
+                      .catch(error => {
+                          console.error('Error fetching resumes:', error);
+                          resumeList.innerHTML = '<p>Error loading resumes.</p>';
+                      });
+              }
+              
+              function closeModal() {
+                  const modal = document.getElementById('resumeModal');
+                  modal.classList.add('hidden');
+                  document.getElementById('resumeList').innerHTML = '';
+                  document.getElementById('chooseResumes').value = '';
+                  updateSelectedCount();
+              }
+              
+              function updateSelectedCount() {
+                  const checkboxes = document.querySelectorAll('.resume-checkbox:checked');
+                  const chosenFiles = document.getElementById('chooseResumes').files;
+                  const totalSelected = checkboxes.length + chosenFiles.length;
+                  document.getElementById('selectedCount').textContent = `${totalSelected} selected`;
+              }
+              
+              function uploadSelectedResumes() {
+                  const checkboxes = document.querySelectorAll('.resume-checkbox:checked');
+                  const chosenFiles = document.getElementById('chooseResumes').files;
+              
+                  if (checkboxes.length === 0 && chosenFiles.length === 0) {
+                      alert('Please select at least one resume or choose a file.');
+                      return;
+                  }
+              
+                  if (checkboxes.length + chosenFiles.length > 15) {
+                      alert('You can upload a maximum of 15 resumes.');
+                      return;
+                  }
+              
+                  const formData = new FormData();
+                  checkboxes.forEach(checkbox => {
+                      formData.append('resume_files', checkbox.value);
+                  });
+                  for (let file of chosenFiles) {
+                      formData.append('resumes', file);
+                  }
+              
+                  const loader = document.getElementById('loader');
+                  loader.style.display = 'flex';
+              
+                  fetch('/upload', {
+                      method: 'POST',
+                      body: formData
+                  })
+                  .then(response => {
+                      if (response.status === 200) {
+                          return response.text(); // Expect HTML response
+                      } else {
+                          return response.json().then(data => Promise.reject(data));
+                      }
+                  })
+                  .then(html => {
+                      document.body.innerHTML = html; // Load the results page
+                      loader.style.display = 'none';
+                      closeModal();
+                  })
+                  .catch(error => {
+                      console.error('Error during upload:', error); // Log the error for debugging
+                      alert(error.error || 'An error occurred during analysis.');
+                      loader.style.display = 'none';
+                  });
+              }
+              
+              // Event listeners
+              document.getElementById('chooseResumes').addEventListener('change', updateSelectedCount);
+              document.addEventListener('change', (e) => {
+                  if (e.target.classList.contains('resume-checkbox')) {
+                      updateSelectedCount();
+                  }
+              });
+              </script>
+             
